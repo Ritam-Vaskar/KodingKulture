@@ -1,9 +1,25 @@
 import api from './authService';
 
-export const leaderboardService = {
-  getLeaderboard: (contestId) => api.get(`/leaderboard/${contestId}`),
+const leaderboardService = {
+  getLeaderboard: async (contestId) => {
+    const response = await api.get(`/leaderboard/${contestId}`);
+    return response.data;
+  },
   
-  getUserRank: (contestId) => api.get(`/leaderboard/${contestId}/rank`),
+  getUserRank: async (contestId) => {
+    const response = await api.get(`/leaderboard/${contestId}/rank`);
+    return response.data;
+  },
   
-  getContestStats: (contestId) => api.get(`/leaderboard/${contestId}/stats`)
+  getContestStats: async (contestId) => {
+    const response = await api.get(`/leaderboard/${contestId}/stats`);
+    return response.data;
+  },
+  
+  generateCertificate: async (contestId) => {
+    const response = await api.post(`/leaderboard/${contestId}/certificate`);
+    return response.data;
+  }
 };
+
+export default leaderboardService;

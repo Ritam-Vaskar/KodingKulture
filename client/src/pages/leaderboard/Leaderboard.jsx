@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { leaderboardService } from '../../services/leaderboardService';
+import leaderboardService from '../../services/leaderboardService';
 import Loader from '../../components/common/Loader';
 import { Trophy, Medal, Award, TrendingUp } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -18,8 +18,8 @@ const Leaderboard = () => {
 
   const fetchLeaderboard = async () => {
     try {
-      const response = await leaderboardService.getLeaderboard(contestId);
-      setLeaderboard(response.data.leaderboard);
+      const data = await leaderboardService.getLeaderboard(contestId);
+      setLeaderboard(data.leaderboard);
     } catch (error) {
       toast.error('Failed to fetch leaderboard');
       console.error(error);
@@ -30,8 +30,8 @@ const Leaderboard = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await leaderboardService.getContestStats(contestId);
-      setStats(response.data.stats);
+      const data = await leaderboardService.getContestStats(contestId);
+      setStats(data.stats);
     } catch (error) {
       console.error(error);
     }

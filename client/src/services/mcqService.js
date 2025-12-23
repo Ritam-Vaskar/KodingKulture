@@ -1,12 +1,31 @@
 import api from './authService';
 
-export const mcqService = {
-  getMCQsByContest: (contestId) => api.get(`/mcq/contest/${contestId}`),
+const mcqService = {
+  getMCQsByContest: async (contestId) => {
+    const response = await api.get(`/mcq/contest/${contestId}`);
+    return response.data;
+  },
   
-  submitMCQAnswers: (data) => api.post('/mcq/submit', data),
+  submitMCQAnswers: async (contestId, answers) => {
+    const response = await api.post('/mcq/submit', { contestId, answers });
+    return response.data;
+  },
   
   // Admin routes
-  createMCQ: (data) => api.post('/mcq', data),
-  updateMCQ: (id, data) => api.put(`/mcq/${id}`, data),
-  deleteMCQ: (id) => api.delete(`/mcq/${id}`)
+  createMCQ: async (data) => {
+    const response = await api.post('/mcq', data);
+    return response.data;
+  },
+  
+  updateMCQ: async (id, data) => {
+    const response = await api.put(`/mcq/${id}`, data);
+    return response.data;
+  },
+  
+  deleteMCQ: async (id) => {
+    const response = await api.delete(`/mcq/${id}`);
+    return response.data;
+  }
 };
+
+export default mcqService;

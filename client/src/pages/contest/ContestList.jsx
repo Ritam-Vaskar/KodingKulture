@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { contestService } from '../../services/contestService';
+import contestService from '../../services/contestService';
 import ContestCard from '../../components/contest/ContestCard';
 import Loader from '../../components/common/Loader';
 import { Filter } from 'lucide-react';
@@ -18,8 +18,8 @@ const ContestList = () => {
     try {
       setLoading(true);
       const statusFilter = filter === 'ALL' ? '' : filter;
-      const response = await contestService.getAllContests(statusFilter);
-      setContests(response.data.contests);
+      const data = await contestService.getAllContests(statusFilter);
+      setContests(data.contests);
     } catch (error) {
       toast.error('Failed to fetch contests');
       console.error(error);

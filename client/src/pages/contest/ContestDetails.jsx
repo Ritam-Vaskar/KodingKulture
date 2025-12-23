@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { contestService } from '../../services/contestService';
+import contestService from '../../services/contestService';
 import { useAuth } from '../../context/AuthContext';
 import Loader from '../../components/common/Loader';
 import { Calendar, Clock, Users, Award, FileText, Code2, CheckCircle } from 'lucide-react';
@@ -21,8 +21,8 @@ const ContestDetails = () => {
 
   const fetchContestDetails = async () => {
     try {
-      const response = await contestService.getContestById(id);
-      setContest(response.data.contest);
+      const data = await contestService.getContestById(id);
+      setContest(data.contest);
     } catch (error) {
       toast.error('Failed to fetch contest details');
       console.error(error);
@@ -133,8 +133,15 @@ const ContestDetails = () => {
                   <FileText className="w-6 h-6 text-primary-500" />
                   <h3 className="text-lg font-semibold text-white">MCQ Section</h3>
                 </div>
-                <p className="text-gray-400 text-sm mb-2">Duration: {contest.sections.mcq.duration} mins</p>
-                <p className="text-gray-400 text-sm">Marks: {contest.sections.mcq.totalMarks}</p>
+                <p className="text-gray-400 text-sm mb-2">Marks: {contest.sections.mcq.totalMarks}</p>
+                {isRegistered && isLive && (
+                  <button
+                    onClick={() => navigate(`/contest/${id}/mcq`)}
+                    className="btn-primary w-full mt-3"
+                  >
+                    Start MCQ Section
+                  </button>
+                )}
               </div>
             )}
             {contest.sections.coding?.enabled && (
@@ -143,8 +150,15 @@ const ContestDetails = () => {
                   <Code2 className="w-6 h-6 text-primary-500" />
                   <h3 className="text-lg font-semibold text-white">Coding Section</h3>
                 </div>
-                <p className="text-gray-400 text-sm mb-2">Duration: {contest.sections.coding.duration} mins</p>
-                <p className="text-gray-400 text-sm">Marks: {contest.sections.coding.totalMarks}</p>
+                <p className="text-gray-400 text-sm mb-2">Marks: {contest.sections.coding.totalMarks}</p>
+                {isRegistered && isLive && (
+                  <button
+                    onClick={() => navigate(`/contest/${id}/coding`)}
+                    className="btn-primary w-full mt-3"
+                  >
+                    Start Coding Section
+                  </button>
+                )}
               </div>
             )}
           </div>

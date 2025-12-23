@@ -4,6 +4,53 @@ import Result from '../models/Result.js';
 import { LANGUAGE_MAP } from '../config/judge0.js';
 import { submitToJudge0, mapStatusToVerdict } from '../services/judge0.service.js';
 
+// @desc    Test run code (without saving)
+// @route   POST /api/submissions/test
+// @access  Private
+export const testRunCode = async (req, res) => {
+  try {
+    const { problemId, sourceCode, languageId, input } = req.body;
+
+    if (!sourceCode || !languageId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Source code and language are required'
+      });
+    }
+
+    // Run code with custom input
+    try {
+      const result = await submitToJudge0(
+        sourceCode,
+        languageId,
+        input || '',
+        '' // No expected output for test run
+      );
+
+      res.status(200).json({
+        success: true,
+        output: result.stdout || '',
+        error: result.stderr || result.compile_output || null,
+        executionTime: result.time ? parseFloat(result.time) * 1000 : 0,
+        memoryUsed: result.memory || 0
+      });
+    } catch (error) {
+      console.error('Test run error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to execute code',
+        error: error.message
+      });
+    }
+  } catch (error) {
+    console.error('Test run code error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 // @desc    Submit code solution
 // @route   POST /api/submissions
 // @access  Private

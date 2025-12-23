@@ -8,18 +8,20 @@ export const getCodingProblemsByContest = async (req, res) => {
   try {
     const { contestId } = req.params;
 
-    // Check if user is registered
-    const contest = await Contest.findById(contestId);
-    if (!contest.participants.includes(req.user._id)) {
-      return res.status(403).json({
-        success: false,
-        message: 'You are not registered for this contest'
-      });
+    // Check if user is registered (skip for admin)
+    if (req.user.role !== 'ADMIN') {
+      const contest = await Contest.findById(contestId);
+      if (!contest.participants.includes(req.user._id)) {
+        return res.status(403).json({
+          success: false,
+          message: 'You are not registered for this contest'
+        });
+      }
     }
 
     const problems = await CodingProblem.find({ contestId })
       .sort({ order: 1 })
-      .select('-testcases'); // Hide testcases from users
+      .select(req.user.role === 'ADMIN' ? '' : '-testcases'); // Show testcases to admin
 
     res.status(200).json({
       success: true,

@@ -40,8 +40,8 @@ const mcqSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['APTITUDE', 'TECHNICAL', 'LOGICAL', 'VERBAL'],
-    default: 'TECHNICAL'
+    enum: ['GENERAL', 'APTITUDE', 'TECHNICAL', 'LOGICAL', 'VERBAL'],
+    default: 'GENERAL'
   },
   explanation: {
     type: String,

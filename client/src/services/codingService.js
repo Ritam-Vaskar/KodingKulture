@@ -1,18 +1,36 @@
 import api from './authService';
 
-export const codingService = {
-  getProblemsByContest: (contestId) => api.get(`/coding/contest/${contestId}`),
+const codingService = {
+  getCodingProblemsByContest: async (contestId) => {
+    const response = await api.get(`/coding/contest/${contestId}`);
+    return response.data;
+  },
   
-  getProblemById: (id) => api.get(`/coding/${id}`),
+  getProblemById: async (id) => {
+    const response = await api.get(`/coding/${id}`);
+    return response.data;
+  },
   
-  submitCode: (data) => api.post('/submissions', data),
+  submitCode: async (contestId, data) => {
+    const response = await api.post(`/submissions`, { ...data, contestId });
+    return response.data;
+  },
   
-  getSubmissionsByProblem: (problemId) => api.get(`/submissions/problem/${problemId}`),
+  runCode: async (data) => {
+    // For testing purposes - this would call Judge0 directly or a test endpoint
+    const response = await api.post(`/submissions/test`, data);
+    return response.data;
+  },
   
-  getSubmissionById: (id) => api.get(`/submissions/${id}`),
+  getSubmissions: async (problemId) => {
+    const response = await api.get(`/submissions/problem/${problemId}`);
+    return response.data;
+  },
   
-  // Admin routes
-  createProblem: (data) => api.post('/coding', data),
-  updateProblem: (id, data) => api.put(`/coding/${id}`, data),
-  deleteProblem: (id) => api.delete(`/coding/${id}`)
+  getSubmissionById: async (id) => {
+    const response = await api.get(`/submissions/${id}`);
+    return response.data;
+  }
 };
+
+export default codingService;

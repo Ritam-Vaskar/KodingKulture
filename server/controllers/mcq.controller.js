@@ -9,18 +9,20 @@ export const getMCQsByContest = async (req, res) => {
   try {
     const { contestId } = req.params;
 
-    // Check if user is registered
-    const contest = await Contest.findById(contestId);
-    if (!contest.participants.includes(req.user._id)) {
-      return res.status(403).json({
-        success: false,
-        message: 'You are not registered for this contest'
-      });
+    // Check if user is registered (skip for admin)
+    if (req.user.role !== 'ADMIN') {
+      const contest = await Contest.findById(contestId);
+      if (!contest.participants.includes(req.user._id)) {
+        return res.status(403).json({
+          success: false,
+          message: 'You are not registered for this contest'
+        });
+      }
     }
 
     const mcqs = await MCQ.find({ contestId })
       .sort({ order: 1 })
-      .select('-correctAnswers -explanation'); // Hide answers
+      .select(req.user.role === 'ADMIN' ? '' : '-correctAnswers -explanation'); // Show answers to admin
 
     res.status(200).json({
       success: true,

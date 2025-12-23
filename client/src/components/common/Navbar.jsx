@@ -38,7 +38,7 @@ const Navbar = () => {
             {isAuthenticated ? (
               <div className="flex items-center space-x-4">
                 {isAdmin && (
-                  <Link to="/admin" className="btn-outline py-2 px-4 flex items-center gap-2">
+                  <Link to="/admin/dashboard" className="btn-outline py-2 px-4 flex items-center gap-2">
                     <LayoutDashboard className="w-4 h-4" />
                     Admin
                   </Link>
@@ -85,7 +85,7 @@ const Navbar = () => {
             {isAuthenticated ? (
               <>
                 {isAdmin && (
-                  <Link to="/admin" className="block text-gray-300 hover:text-primary-500 py-2">
+                  <Link to="/admin/dashboard" className="block text-gray-300 hover:text-primary-500 py-2">
                     Admin Dashboard
                   </Link>
                 )}

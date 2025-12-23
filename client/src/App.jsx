@@ -8,8 +8,15 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import ContestList from './pages/contest/ContestList';
 import ContestDetails from './pages/contest/ContestDetails';
+import MCQSection from './pages/contest/MCQSection';
+import CodingSection from './pages/contest/CodingSection';
 import UserDashboard from './pages/dashboard/UserDashboard';
 import Leaderboard from './pages/leaderboard/Leaderboard';
+import Certificate from './pages/certificate/Certificate';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import CreateContest from './pages/admin/CreateContest';
+import ManageMCQ from './pages/admin/ManageMCQ';
+import ManageCodingProblems from './pages/admin/ManageCodingProblems';
 import Loader from './components/common/Loader';
 
 // Protected Route Component
@@ -22,6 +29,25 @@ const ProtectedRoute = ({ children }) => {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
+
+// Admin Route Component
+const AdminRoute = ({ children }) => {
+  const { isAuthenticated, isAdmin, loading } = useAuth();
+
+  if (loading) {
+    return <Loader fullScreen />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
   }
 
   return children;
@@ -81,6 +107,72 @@ function App() {
               <ProtectedRoute>
                 <Layout><UserDashboard /></Layout>
               </ProtectedRoute>
+            }
+          />
+          
+          {/* Contest Section Routes */}
+          <Route
+            path="/contest/:contestId/mcq"
+            element={
+              <ProtectedRoute>
+                <MCQSection />
+              </ProtectedRoute>
+            }
+          />
+          
+          <Route
+            path="/contest/:contestId/coding"
+            element={
+              <ProtectedRoute>
+                <CodingSection />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Certificate Route */}
+          <Route
+            path="/certificate/:resultId"
+            element={
+              <ProtectedRoute>
+                <Layout><Certificate /></Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin Routes */}
+          <Route
+            path="/admin/dashboard"
+            element={
+              <AdminRoute>
+                <Layout><AdminDashboard /></Layout>
+              </AdminRoute>
+            }
+          />
+          
+          <Route
+            path="/admin/contest/create"
+            element={
+              <AdminRoute>
+                <Layout><CreateContest /></Layout>
+              </AdminRoute>
+            }
+          />
+          
+          <Route
+            path="/admin/contest/mcq/:contestId"
+            element={
+              <AdminRoute>
+                <Layout><ManageMCQ /></Layout>
+              </AdminRoute>
+            }
+          />
+          
+          <Route
+            path="/admin/contest/coding/:contestId"
+            element={
+              <AdminRoute>
+                <Layout><ManageCodingProblems /></Layout>
+              </AdminRoute>
             }
           />
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { contestService } from '../../services/contestService';
+import contestService from '../../services/contestService';
 import ContestCard from '../../components/contest/ContestCard';
 import Loader from '../../components/common/Loader';
 import { User, Trophy, Target, Calendar } from 'lucide-react';
@@ -17,8 +17,8 @@ const UserDashboard = () => {
 
   const fetchMyContests = async () => {
     try {
-      const response = await contestService.getMyContests();
-      setMyContests(response.data.contests);
+      const data = await contestService.getMyContests();
+      setMyContests(data.contests);
     } catch (error) {
       toast.error('Failed to fetch contests');
       console.error(error);

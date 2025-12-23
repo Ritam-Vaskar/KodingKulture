@@ -59,8 +59,7 @@ const contestSchema = new mongoose.Schema({
     type: String
   }],
   prizes: [{
-    rank: String,
-    prize: String
+    type: String
   }],
   status: {
     type: String,

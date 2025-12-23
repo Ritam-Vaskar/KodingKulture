@@ -1,6 +1,61 @@
 import Result from '../models/Result.js';
 import Contest from '../models/Contest.js';
 
+// @desc    Generate certificate for user
+// @route   POST /api/leaderboard/:contestId/certificate
+// @access  Private
+export const generateCertificate = async (req, res) => {
+  try {
+    const { contestId } = req.params;
+    const userId = req.user._id;
+
+    const result = await Result.findOne({ contestId, userId })
+      .populate('contestId', 'title')
+      .populate('userId', 'name email');
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: 'Result not found'
+      });
+    }
+
+    if (result.status !== 'SUBMITTED' && result.status !== 'EVALUATED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Contest not completed yet'
+      });
+    }
+
+    // Simple certificate data (can be extended with PDF generation using pdfkit)
+    const certificateData = {
+      certificateId: `CERT-${contestId.slice(-6)}-${userId.toString().slice(-6)}`,
+      userName: result.userId.name,
+      contestTitle: result.contestId.title,
+      rank: result.rank,
+      score: result.totalScore,
+      issueDate: new Date().toLocaleDateString(),
+      certificateUrl: `${process.env.CLIENT_URL}/certificate/${result._id}`
+    };
+
+    // Update result with certificate info
+    result.certificateGenerated = true;
+    result.certificateUrl = certificateData.certificateUrl;
+    await result.save();
+
+    res.status(200).json({
+      success: true,
+      certificate: certificateData
+    });
+  } catch (error) {
+    console.error('Generate certificate error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error generating certificate'
+    });
+  }
+};
+
 // @desc    Get leaderboard for a contest
 // @route   GET /api/leaderboard/:contestId
 // @access  Public
