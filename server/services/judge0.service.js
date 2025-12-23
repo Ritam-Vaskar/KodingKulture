@@ -1,0 +1,115 @@
+import judge0Client, { LANGUAGE_MAP } from '../config/judge0.js';
+
+// @desc    Submit code to Judge0
+// @route   POST /api/judge0/submit
+export const submitToJudge0 = async (sourceCode, languageId, input, expectedOutput) => {
+  try {
+    // Create submission
+    const response = await judge0Client.post('/submissions', {
+      source_code: sourceCode,
+      language_id: languageId,
+      stdin: input,
+      expected_output: expectedOutput,
+      cpu_time_limit: 2,
+      memory_limit: 256000 // 256 MB in KB
+    });
+
+    const token = response.data.token;
+
+    // Poll for result
+    let result;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+
+      const resultResponse = await judge0Client.get(`/submissions/${token}`);
+      result = resultResponse.data;
+
+      if (result.status.id > 2) { // Status > 2 means completed
+        break;
+      }
+
+      attempts++;
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Judge0 submission error:', error);
+    throw error;
+  }
+};
+
+// @desc    Batch submit to Judge0
+export const batchSubmitToJudge0 = async (submissions) => {
+  try {
+    const response = await judge0Client.post('/submissions/batch', {
+      submissions
+    });
+
+    const tokens = response.data.map(s => s.token);
+
+    // Poll for results
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+
+    const results = await Promise.all(
+      tokens.map(token => 
+        judge0Client.get(`/submissions/${token}`)
+          .then(res => res.data)
+      )
+    );
+
+    return results;
+  } catch (error) {
+    console.error('Judge0 batch submission error:', error);
+    throw error;
+  }
+};
+
+// @desc    Get Judge0 status
+export const getJudge0Status = async () => {
+  try {
+    const response = await judge0Client.get('/about');
+    return response.data;
+  } catch (error) {
+    console.error('Judge0 status error:', error);
+    throw error;
+  }
+};
+
+// Status ID mapping
+export const STATUS_MAP = {
+  1: 'IN_QUEUE',
+  2: 'PROCESSING',
+  3: 'ACCEPTED',
+  4: 'WRONG_ANSWER',
+  5: 'TIME_LIMIT_EXCEEDED',
+  6: 'COMPILATION_ERROR',
+  7: 'RUNTIME_ERROR_SIGSEGV',
+  8: 'RUNTIME_ERROR_SIGXFSZ',
+  9: 'RUNTIME_ERROR_SIGFPE',
+  10: 'RUNTIME_ERROR_SIGABRT',
+  11: 'RUNTIME_ERROR_NZEC',
+  12: 'RUNTIME_ERROR_OTHER',
+  13: 'INTERNAL_ERROR',
+  14: 'EXEC_FORMAT_ERROR'
+};
+
+export const mapStatusToVerdict = (statusId) => {
+  switch(statusId) {
+    case 3:
+      return 'ACCEPTED';
+    case 4:
+      return 'WRONG_ANSWER';
+    case 5:
+      return 'TIME_LIMIT_EXCEEDED';
+    case 6:
+      return 'COMPILATION_ERROR';
+    default:
+      if (statusId >= 7 && statusId <= 12) {
+        return 'RUNTIME_ERROR';
+      }
+      return 'PENDING';
+  }
+};

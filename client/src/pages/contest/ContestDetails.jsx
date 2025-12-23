@@ -1,0 +1,211 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { contestService } from '../../services/contestService';
+import { useAuth } from '../../context/AuthContext';
+import Loader from '../../components/common/Loader';
+import { Calendar, Clock, Users, Award, FileText, Code2, CheckCircle } from 'lucide-react';
+import { formatDate } from '../../utils/formatTime';
+import toast from 'react-hot-toast';
+
+const ContestDetails = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const [contest, setContest] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [registering, setRegistering] = useState(false);
+
+  useEffect(() => {
+    fetchContestDetails();
+  }, [id]);
+
+  const fetchContestDetails = async () => {
+    try {
+      const response = await contestService.getContestById(id);
+      setContest(response.data.contest);
+    } catch (error) {
+      toast.error('Failed to fetch contest details');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async () => {
+    if (!isAuthenticated) {
+      toast.error('Please login to register');
+      navigate('/login');
+      return;
+    }
+
+    try {
+      setRegistering(true);
+      await contestService.registerForContest(id);
+      toast.success('Successfully registered for contest!');
+      fetchContestDetails();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Registration failed');
+    } finally {
+      setRegistering(false);
+    }
+  };
+
+  const handleEnterContest = () => {
+    if (contest.sections.mcq.enabled) {
+      navigate(`/contest/${id}/mcq`);
+    } else {
+      navigate(`/contest/${id}/coding`);
+    }
+  };
+
+  if (loading) {
+    return <Loader fullScreen />;
+  }
+
+  if (!contest) {
+    return (
+      <div className="min-h-screen bg-dark-950 flex items-center justify-center">
+        <div className="card text-center">
+          <p className="text-gray-400 text-lg">Contest not found</p>
+        </div>
+      </div>
+    );
+  }
+
+  const isRegistered = contest.participants?.includes(useAuth().user?._id);
+  const isLive = contest.status === 'LIVE';
+  const isEnded = contest.status === 'ENDED';
+
+  return (
+    <div className="min-h-screen bg-dark-950 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Status Badge */}
+        <div className="mb-6">
+          {contest.status === 'LIVE' && <span className="badge-success text-lg">🔴 LIVE NOW</span>}
+          {contest.status === 'UPCOMING' && <span className="badge-warning text-lg">🕒 UPCOMING</span>}
+          {contest.status === 'ENDED' && <span className="badge-error text-lg">✓ ENDED</span>}
+        </div>
+
+        {/* Title & Description */}
+        <div className="card mb-6">
+          <h1 className="text-4xl font-bold text-white mb-4">{contest.title}</h1>
+          <p className="text-gray-400 text-lg mb-6">{contest.description}</p>
+
+          {/* Info Grid */}
+          <div className="grid md:grid-cols-2 gap-4 mb-6">
+            <div className="flex items-center gap-3 bg-dark-800 p-4 rounded-lg">
+              <Calendar className="w-6 h-6 text-primary-500" />
+              <div>
+                <div className="text-sm text-gray-400">Start Time</div>
+                <div className="text-white font-semibold">{formatDate(contest.startTime)}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 bg-dark-800 p-4 rounded-lg">
+              <Clock className="w-6 h-6 text-primary-500" />
+              <div>
+                <div className="text-sm text-gray-400">Duration</div>
+                <div className="text-white font-semibold">{contest.duration} minutes</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 bg-dark-800 p-4 rounded-lg">
+              <Users className="w-6 h-6 text-primary-500" />
+              <div>
+                <div className="text-sm text-gray-400">Participants</div>
+                <div className="text-white font-semibold">{contest.participants?.length || 0} registered</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 bg-dark-800 p-4 rounded-lg">
+              <Award className="w-6 h-6 text-primary-500" />
+              <div>
+                <div className="text-sm text-gray-400">Total Marks</div>
+                <div className="text-white font-semibold">
+                  {(contest.sections.mcq?.totalMarks || 0) + (contest.sections.coding?.totalMarks || 0)} points
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sections */}
+          <div className="grid md:grid-cols-2 gap-4 mb-6">
+            {contest.sections.mcq?.enabled && (
+              <div className="bg-dark-800 p-4 rounded-lg border border-dark-700">
+                <div className="flex items-center gap-3 mb-2">
+                  <FileText className="w-6 h-6 text-primary-500" />
+                  <h3 className="text-lg font-semibold text-white">MCQ Section</h3>
+                </div>
+                <p className="text-gray-400 text-sm mb-2">Duration: {contest.sections.mcq.duration} mins</p>
+                <p className="text-gray-400 text-sm">Marks: {contest.sections.mcq.totalMarks}</p>
+              </div>
+            )}
+            {contest.sections.coding?.enabled && (
+              <div className="bg-dark-800 p-4 rounded-lg border border-dark-700">
+                <div className="flex items-center gap-3 mb-2">
+                  <Code2 className="w-6 h-6 text-primary-500" />
+                  <h3 className="text-lg font-semibold text-white">Coding Section</h3>
+                </div>
+                <p className="text-gray-400 text-sm mb-2">Duration: {contest.sections.coding.duration} mins</p>
+                <p className="text-gray-400 text-sm">Marks: {contest.sections.coding.totalMarks}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-4">
+            {!isRegistered && !isEnded && (
+              <button
+                onClick={handleRegister}
+                disabled={registering}
+                className="btn-primary flex-1 py-3 text-lg font-semibold"
+              >
+                {registering ? 'Registering...' : 'Register for Contest'}
+              </button>
+            )}
+            
+            {isRegistered && !isEnded && (
+              <div className="flex-1 flex items-center gap-4">
+                <div className="flex items-center gap-2 text-green-400">
+                  <CheckCircle className="w-5 h-5" />
+                  <span className="font-semibold">Registered</span>
+                </div>
+                {isLive && (
+                  <button
+                    onClick={handleEnterContest}
+                    className="btn-primary flex-1 py-3 text-lg font-semibold glow-effect"
+                  >
+                    Enter Contest Now
+                  </button>
+                )}
+              </div>
+            )}
+
+            {isEnded && (
+              <button
+                onClick={() => navigate(`/leaderboard/${id}`)}
+                className="btn-primary flex-1 py-3 text-lg font-semibold"
+              >
+                View Leaderboard
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Rules */}
+        {contest.rules && contest.rules.length > 0 && (
+          <div className="card">
+            <h2 className="text-2xl font-bold text-white mb-4">Contest Rules</h2>
+            <ul className="space-y-2">
+              {contest.rules.map((rule, index) => (
+                <li key={index} className="flex items-start gap-3 text-gray-400">
+                  <span className="text-primary-500 font-bold">{index + 1}.</span>
+                  <span>{rule}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ContestDetails;
