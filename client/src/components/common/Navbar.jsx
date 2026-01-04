@@ -22,7 +22,10 @@ const Navbar = () => {
             <div className="bg-gradient-to-br from-primary-500 to-primary-600 p-2 rounded-lg group-hover:scale-110 transition-transform duration-200">
               <Code2 className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold gradient-text">Contest Platform</span>
+            <span className="text-xl font-bold">
+              <span className="text-primary-500">FAKT</span>
+              <span className="text-white"> CHECK</span>
+            </span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -65,7 +68,7 @@ const Navbar = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <button 
+          <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="md:hidden text-gray-300 hover:text-primary-500"
           >

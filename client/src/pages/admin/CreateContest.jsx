@@ -53,7 +53,7 @@ const CreateContest = () => {
       setLoading(true);
       const data = await contestService.getContestById(contestId);
       const contest = data.contest;
-      
+
       // Format dates for datetime-local input
       const formatDateTime = (date) => {
         const d = new Date(date);
@@ -82,7 +82,7 @@ const CreateContest = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
+
     if (name.includes('.')) {
       const [parent, child, subChild] = name.split('.');
       if (subChild) {
@@ -166,8 +166,14 @@ const CreateContest = () => {
     setLoading(true);
 
     try {
+      // Convert datetime-local strings to ISO strings (browser interprets as local time)
+      const startTimeDate = new Date(formData.startTime);
+      const endTimeDate = new Date(formData.endTime);
+
       const contestData = {
         ...formData,
+        startTime: startTimeDate.toISOString(),
+        endTime: endTimeDate.toISOString(),
         maxParticipants: formData.maxParticipants ? parseInt(formData.maxParticipants) : undefined,
         duration: parseInt(formData.duration),
         sections: {
@@ -191,7 +197,7 @@ const CreateContest = () => {
         await adminService.createContest(contestData);
         toast.success('Contest created successfully!');
       }
-      
+
       navigate('/admin/dashboard');
     } catch (error) {
       console.error('Error saving contest:', error);
@@ -210,7 +216,7 @@ const CreateContest = () => {
             <h1 className="text-3xl font-bold mb-2">{isEditMode ? 'Edit Contest' : 'Create New Contest'}</h1>
             <p className="text-gray-400">{isEditMode ? 'Update contest details' : 'Fill in the details to create a new contest'}</p>
           </div>
-          
+
           <button
             onClick={() => navigate('/admin/dashboard')}
             className="btn-secondary"
@@ -226,295 +232,295 @@ const CreateContest = () => {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
-          <div className="card">
-            <h2 className="text-xl font-bold mb-4">Basic Information</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Contest Title *
-                </label>
+            {/* Basic Information */}
+            <div className="card">
+              <h2 className="text-xl font-bold mb-4">Basic Information</h2>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Contest Title *
+                  </label>
+                  <input
+                    type="text"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    className="input-field"
+                    placeholder="e.g., Weekly Coding Challenge #1"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Description *
+                  </label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    rows="4"
+                    className="input-field resize-none"
+                    placeholder="Describe what this contest is about..."
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Start Time *
+                    </label>
+                    <input
+                      type="datetime-local"
+                      name="startTime"
+                      value={formData.startTime}
+                      onChange={handleChange}
+                      className="input-field"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      End Time *
+                    </label>
+                    <input
+                      type="datetime-local"
+                      name="endTime"
+                      value={formData.endTime}
+                      onChange={handleChange}
+                      className="input-field"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Duration (minutes) *
+                    </label>
+                    <input
+                      type="number"
+                      name="duration"
+                      value={formData.duration}
+                      onChange={handleChange}
+                      className="input-field"
+                      min="1"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Max Participants (optional)
+                    </label>
+                    <input
+                      type="number"
+                      name="maxParticipants"
+                      value={formData.maxParticipants}
+                      onChange={handleChange}
+                      className="input-field"
+                      placeholder="Leave empty for unlimited"
+                      min="1"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sections Configuration */}
+            <div className="card">
+              <h2 className="text-xl font-bold mb-4">Contest Sections</h2>
+
+              <div className="space-y-4">
+                {/* MCQ Section */}
+                <div className="p-4 bg-dark-700/50 rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        name="sections.mcq.enabled"
+                        checked={formData.sections.mcq.enabled}
+                        onChange={handleChange}
+                        className="w-5 h-5 rounded border-gray-600 text-primary-500 focus:ring-primary-500"
+                      />
+                      <span className="text-lg font-semibold">MCQ Section</span>
+                    </label>
+                  </div>
+
+                  {formData.sections.mcq.enabled && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Total Marks
+                      </label>
+                      <input
+                        type="number"
+                        name="sections.mcq.totalMarks"
+                        value={formData.sections.mcq.totalMarks}
+                        onChange={handleChange}
+                        className="input-field"
+                        min="1"
+                        required
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Coding Section */}
+                <div className="p-4 bg-dark-700/50 rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        name="sections.coding.enabled"
+                        checked={formData.sections.coding.enabled}
+                        onChange={handleChange}
+                        className="w-5 h-5 rounded border-gray-600 text-primary-500 focus:ring-primary-500"
+                      />
+                      <span className="text-lg font-semibold">Coding Section</span>
+                    </label>
+                  </div>
+
+                  {formData.sections.coding.enabled && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Total Marks
+                      </label>
+                      <input
+                        type="number"
+                        name="sections.coding.totalMarks"
+                        value={formData.sections.coding.totalMarks}
+                        onChange={handleChange}
+                        className="input-field"
+                        min="1"
+                        required
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Rules */}
+            <div className="card">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold">Contest Rules</h2>
+                <button
+                  type="button"
+                  onClick={() => addArrayItem('rules')}
+                  className="btn-secondary text-sm"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Rule
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {formData.rules.map((rule, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={rule}
+                      onChange={(e) => handleArrayChange('rules', index, e.target.value)}
+                      className="input-field flex-1"
+                      placeholder={`Rule ${index + 1}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeArrayItem('rules', index)}
+                      className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-red-400"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Prizes */}
+            <div className="card">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold">Prizes</h2>
+                <button
+                  type="button"
+                  onClick={() => addArrayItem('prizes')}
+                  className="btn-secondary text-sm"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Prize
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {formData.prizes.map((prize, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={prize}
+                      onChange={(e) => handleArrayChange('prizes', index, e.target.value)}
+                      className="input-field flex-1"
+                      placeholder={`Prize ${index + 1}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeArrayItem('prizes', index)}
+                      className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-red-400"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Publish Option */}
+            <div className="card">
+              <label className="flex items-center gap-3 cursor-pointer">
                 <input
-                  type="text"
-                  name="title"
-                  value={formData.title}
+                  type="checkbox"
+                  name="isPublished"
+                  checked={formData.isPublished}
                   onChange={handleChange}
-                  className="input-field"
-                  placeholder="e.g., Weekly Coding Challenge #1"
-                  required
+                  className="w-5 h-5 rounded border-gray-600 text-primary-500 focus:ring-primary-500"
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Description *
-                </label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  rows="4"
-                  className="input-field resize-none"
-                  placeholder="Describe what this contest is about..."
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Start Time *
-                  </label>
-                  <input
-                    type="datetime-local"
-                    name="startTime"
-                    value={formData.startTime}
-                    onChange={handleChange}
-                    className="input-field"
-                    required
-                  />
+                  <p className="font-semibold">Publish Contest</p>
+                  <p className="text-sm text-gray-400">Make this contest visible to users</p>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    End Time *
-                  </label>
-                  <input
-                    type="datetime-local"
-                    name="endTime"
-                    value={formData.endTime}
-                    onChange={handleChange}
-                    className="input-field"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Duration (minutes) *
-                  </label>
-                  <input
-                    type="number"
-                    name="duration"
-                    value={formData.duration}
-                    onChange={handleChange}
-                    className="input-field"
-                    min="1"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Max Participants (optional)
-                  </label>
-                  <input
-                    type="number"
-                    name="maxParticipants"
-                    value={formData.maxParticipants}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="Leave empty for unlimited"
-                    min="1"
-                  />
-                </div>
-              </div>
+              </label>
             </div>
-          </div>
 
-          {/* Sections Configuration */}
-          <div className="card">
-            <h2 className="text-xl font-bold mb-4">Contest Sections</h2>
-            
-            <div className="space-y-4">
-              {/* MCQ Section */}
-              <div className="p-4 bg-dark-700/50 rounded-lg">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      name="sections.mcq.enabled"
-                      checked={formData.sections.mcq.enabled}
-                      onChange={handleChange}
-                      className="w-5 h-5 rounded border-gray-600 text-primary-500 focus:ring-primary-500"
-                    />
-                    <span className="text-lg font-semibold">MCQ Section</span>
-                  </label>
-                </div>
-                
-                {formData.sections.mcq.enabled && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Total Marks
-                    </label>
-                    <input
-                      type="number"
-                      name="sections.mcq.totalMarks"
-                      value={formData.sections.mcq.totalMarks}
-                      onChange={handleChange}
-                      className="input-field"
-                      min="1"
-                      required
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Coding Section */}
-              <div className="p-4 bg-dark-700/50 rounded-lg">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      name="sections.coding.enabled"
-                      checked={formData.sections.coding.enabled}
-                      onChange={handleChange}
-                      className="w-5 h-5 rounded border-gray-600 text-primary-500 focus:ring-primary-500"
-                    />
-                    <span className="text-lg font-semibold">Coding Section</span>
-                  </label>
-                </div>
-                
-                {formData.sections.coding.enabled && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Total Marks
-                    </label>
-                    <input
-                      type="number"
-                      name="sections.coding.totalMarks"
-                      value={formData.sections.coding.totalMarks}
-                      onChange={handleChange}
-                      className="input-field"
-                      min="1"
-                      required
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Rules */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">Contest Rules</h2>
+            {/* Submit Button */}
+            <div className="flex justify-end gap-4">
               <button
                 type="button"
-                onClick={() => addArrayItem('rules')}
-                className="btn-secondary text-sm"
+                onClick={() => navigate('/admin/dashboard')}
+                className="btn-secondary"
               >
-                <Plus className="w-4 h-4 mr-1" />
-                Add Rule
+                Cancel
               </button>
-            </div>
-            
-            <div className="space-y-3">
-              {formData.rules.map((rule, index) => (
-                <div key={index} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={rule}
-                    onChange={(e) => handleArrayChange('rules', index, e.target.value)}
-                    className="input-field flex-1"
-                    placeholder={`Rule ${index + 1}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeArrayItem('rules', index)}
-                    className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-red-400"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Prizes */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">Prizes</h2>
               <button
-                type="button"
-                onClick={() => addArrayItem('prizes')}
-                className="btn-secondary text-sm"
+                type="submit"
+                disabled={loading}
+                className="btn-primary"
               >
-                <Plus className="w-4 h-4 mr-1" />
-                Add Prize
+                {loading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    {isEditMode ? 'Updating...' : 'Creating...'}
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5 mr-2" />
+                    {isEditMode ? 'Update Contest' : 'Create Contest'}
+                  </>
+                )}
               </button>
             </div>
-            
-            <div className="space-y-3">
-              {formData.prizes.map((prize, index) => (
-                <div key={index} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={prize}
-                    onChange={(e) => handleArrayChange('prizes', index, e.target.value)}
-                    className="input-field flex-1"
-                    placeholder={`Prize ${index + 1}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeArrayItem('prizes', index)}
-                    className="p-2 hover:bg-dark-600 rounded-lg transition-colors text-red-400"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Publish Option */}
-          <div className="card">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                name="isPublished"
-                checked={formData.isPublished}
-                onChange={handleChange}
-                className="w-5 h-5 rounded border-gray-600 text-primary-500 focus:ring-primary-500"
-              />
-              <div>
-                <p className="font-semibold">Publish Contest</p>
-                <p className="text-sm text-gray-400">Make this contest visible to users</p>
-              </div>
-            </label>
-          </div>
-
-          {/* Submit Button */}
-          <div className="flex justify-end gap-4">
-            <button
-              type="button"
-              onClick={() => navigate('/admin/dashboard')}
-              className="btn-secondary"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary"
-            >
-              {loading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  {isEditMode ? 'Updating...' : 'Creating...'}
-                </>
-              ) : (
-                <>
-                  <Save className="w-5 h-5 mr-2" />
-                  {isEditMode ? 'Update Contest' : 'Create Contest'}
-                </>
-              )}
-            </button>
-          </div>
-        </form>
+          </form>
         )}
       </div>
     </div>

@@ -8,9 +8,17 @@ export const getCodingProblemsByContest = async (req, res) => {
   try {
     const { contestId } = req.params;
 
+    // Get contest info
+    const contest = await Contest.findById(contestId);
+    if (!contest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Contest not found'
+      });
+    }
+
     // Check if user is registered (skip for admin)
     if (req.user.role !== 'ADMIN') {
-      const contest = await Contest.findById(contestId);
       if (!contest.participants.includes(req.user._id)) {
         return res.status(403).json({
           success: false,
@@ -26,7 +34,13 @@ export const getCodingProblemsByContest = async (req, res) => {
     res.status(200).json({
       success: true,
       count: problems.length,
-      problems
+      problems,
+      contest: {
+        title: contest.title,
+        duration: contest.duration,
+        startTime: contest.startTime,
+        endTime: contest.endTime
+      }
     });
   } catch (error) {
     console.error('Get coding problems error:', error);

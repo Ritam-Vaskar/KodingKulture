@@ -4,18 +4,19 @@ import { useAuth } from '../../context/AuthContext';
 import codingService from '../../services/codingService';
 import Editor from '@monaco-editor/react';
 import toast from 'react-hot-toast';
-import { 
-  Play, 
-  Send, 
-  Clock, 
-  ChevronLeft, 
-  ChevronRight, 
-  Code, 
-  CheckCircle, 
+import {
+  Play,
+  Send,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+  Code,
+  CheckCircle,
   XCircle,
   Loader,
   Terminal,
-  FileCode
+  FileCode,
+  CheckSquare
 } from 'lucide-react';
 
 const LANGUAGE_OPTIONS = [
@@ -32,19 +33,23 @@ const CodingSection = () => {
   const { contestId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+
   const [problems, setProblems] = useState([]);
   const [currentProblem, setCurrentProblem] = useState(0);
   const [selectedLanguage, setSelectedLanguage] = useState(LANGUAGE_OPTIONS[3]); // Python default
   const [code, setCode] = useState(LANGUAGE_OPTIONS[3].template);
+  const [codeByProblem, setCodeByProblem] = useState({}); // Store code per problem
   const [customInput, setCustomInput] = useState('');
   const [output, setOutput] = useState('');
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('description'); // description, submissions
   const [submissions, setSubmissions] = useState([]);
   const [testResults, setTestResults] = useState(null);
+  const [timeRemaining, setTimeRemaining] = useState(null);
+  const [contestInfo, setContestInfo] = useState(null);
 
   useEffect(() => {
     fetchProblems();
@@ -56,10 +61,127 @@ const CodingSection = () => {
     }
   }, [currentProblem, problems]);
 
+  // Save and restore code, customInput, and output when switching problems (with localStorage)
+  useEffect(() => {
+    if (problems.length > 0) {
+      const problemId = problems[currentProblem]?._id;
+      if (problemId) {
+        // Restore code
+        const codeKey = `code_${contestId}_${problemId}`;
+        const savedCode = localStorage.getItem(codeKey) || codeByProblem[problemId];
+        if (savedCode !== undefined && savedCode !== null) {
+          setCode(savedCode);
+        } else {
+          setCode(selectedLanguage.template);
+        }
+
+        // Restore customInput
+        const inputKey = `input_${contestId}_${problemId}`;
+        const savedInput = localStorage.getItem(inputKey);
+        setCustomInput(savedInput || '');
+
+        // Restore output
+        const outputKey = `output_${contestId}_${problemId}`;
+        const savedOutput = localStorage.getItem(outputKey);
+        setOutput(savedOutput || '');
+      }
+      setTestResults(null);
+    }
+  }, [currentProblem, problems]);
+
+  // Save code, customInput, and output to localStorage whenever they change
+  useEffect(() => {
+    if (problems.length > 0 && problems[currentProblem]) {
+      const problemId = problems[currentProblem]._id;
+
+      // Save code
+      const codeKey = `code_${contestId}_${problemId}`;
+      setCodeByProblem(prev => ({ ...prev, [problemId]: code }));
+      localStorage.setItem(codeKey, code);
+
+      // Save customInput
+      const inputKey = `input_${contestId}_${problemId}`;
+      localStorage.setItem(inputKey, customInput);
+
+      // Save output
+      const outputKey = `output_${contestId}_${problemId}`;
+      localStorage.setItem(outputKey, output);
+    }
+  }, [code, customInput, output, currentProblem, problems, contestId]);
+
+  // Timer countdown with auto-submit
+  useEffect(() => {
+    if (timeRemaining === null) return;
+
+    const timer = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          // Auto-submit all problems when time runs out
+          toast.error('Time is up! Auto-submitting...');
+          handleAutoSubmit();
+          localStorage.removeItem(`timer_${contestId}`);
+          return 0;
+        }
+        const newTime = prev - 1;
+        // Save to localStorage on each tick
+        localStorage.setItem(`timer_${contestId}`, newTime.toString());
+        return newTime;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [timeRemaining]);
+
+  // Auto-submit function for when time runs out
+  const handleAutoSubmit = async () => {
+    if (code.trim()) {
+      try {
+        const problem = problems[currentProblem];
+        await codingService.submitCode(contestId, {
+          problemId: problem._id,
+          sourceCode: code,
+          languageId: selectedLanguage.id
+        });
+        toast.success('Code auto-submitted!');
+      } catch (error) {
+        console.error('Auto-submit error:', error);
+      }
+    }
+    navigate(`/contest/${contestId}/result`);
+  };
+
+  const formatTime = (seconds) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const fetchProblems = async () => {
     try {
       const data = await codingService.getCodingProblemsByContest(contestId);
       setProblems(data.problems);
+
+      // Fetch contest info for timer
+      if (data.contest) {
+        setContestInfo(data.contest);
+
+        // Try to restore timer from localStorage first
+        const savedTime = localStorage.getItem(`timer_${contestId}`);
+        if (savedTime && !isNaN(parseInt(savedTime))) {
+          const timeValue = parseInt(savedTime);
+          if (timeValue > 0) {
+            setTimeRemaining(timeValue);
+          } else {
+            // Timer expired, use full duration
+            setTimeRemaining(data.contest.duration * 60);
+          }
+        } else if (data.contest.duration) {
+          // No saved time, use full duration
+          setTimeRemaining(data.contest.duration * 60);
+        }
+      }
+
       setLoading(false);
     } catch (error) {
       console.error('Error fetching problems:', error);
@@ -103,22 +225,88 @@ const CodingSection = () => {
         problemId: problem._id,
         sourceCode: code,
         languageId: selectedLanguage.id,
-        input: testInput
+        input: customInput || (problem.examples[0]?.input || '') // Use example input if no custom input
       });
 
-      setOutput(response.output || response.error || 'No output');
-      
+      // Build output display based on whether we have comparison results
+      let outputDisplay = '';
+
       if (response.error) {
+        outputDisplay = response.error;
         toast.error('Compilation/Runtime error');
+      } else if (response.passed === true) {
+        outputDisplay = `✅ TEST PASSED\n\nYour Output:\n${response.output}\n\nExpected Output:\n${response.expectedOutput}`;
+        toast.success('✅ Test case passed!');
+      } else if (response.passed === false) {
+        outputDisplay = `❌ TEST FAILED\n\nYour Output:\n${response.output}\n\nExpected Output:\n${response.expectedOutput}`;
+        toast.error('❌ Test case failed - output does not match');
       } else {
+        // Custom input was used, no comparison available
+        outputDisplay = response.output || 'No output';
         toast.success('Code executed successfully');
       }
+
+      setOutput(outputDisplay);
     } catch (error) {
       console.error('Error running code:', error);
       setOutput(error.response?.data?.message || 'Failed to run code');
       toast.error('Failed to run code');
     } finally {
       setRunning(false);
+    }
+  };
+
+  const handleCheckTestCases = async () => {
+    if (!code.trim()) {
+      toast.error('Please write some code first');
+      return;
+    }
+
+    setChecking(true);
+    setOutput('Checking all test cases...');
+    setTestResults(null);
+
+    try {
+      const problem = problems[currentProblem];
+      const response = await codingService.checkAllTestCases({
+        problemId: problem._id,
+        sourceCode: code,
+        languageId: selectedLanguage.id
+      });
+
+      // Build detailed output
+      let outputDisplay = response.allPassed
+        ? `✅ ALL TEST CASES PASSED (${response.passedCount}/${response.totalTestcases})\n\n`
+        : `❌ FAILED (${response.passedCount}/${response.totalTestcases} passed)\n\n`;
+
+      response.testcaseResults.forEach(tc => {
+        outputDisplay += `Test Case ${tc.testcaseNumber}: ${tc.passed ? '✅ PASSED' : '❌ FAILED'}\n`;
+        if (!tc.hidden) {
+          outputDisplay += `  Input: ${tc.input}\n`;
+          outputDisplay += `  Expected: ${tc.expectedOutput}\n`;
+          outputDisplay += `  Your Output: ${tc.actualOutput}\n`;
+        } else {
+          outputDisplay += `  [Hidden Test Case]\n`;
+        }
+        if (tc.error) {
+          outputDisplay += `  Error: ${tc.error}\n`;
+        }
+        outputDisplay += `  Time: ${tc.executionTime?.toFixed(2) || 0}ms\n\n`;
+      });
+
+      setOutput(outputDisplay);
+
+      if (response.allPassed) {
+        toast.success(`✅ All ${response.totalTestcases} test cases passed!`);
+      } else {
+        toast.error(`❌ ${response.totalTestcases - response.passedCount} test case(s) failed`);
+      }
+    } catch (error) {
+      console.error('Error checking test cases:', error);
+      setOutput(error.response?.data?.message || 'Failed to check test cases');
+      toast.error('Failed to check test cases');
+    } finally {
+      setChecking(false);
     }
   };
 
@@ -140,7 +328,7 @@ const CodingSection = () => {
       });
 
       setTestResults(response.submission);
-      
+
       if (response.submission.verdict === 'ACCEPTED') {
         toast.success(`Accepted! Score: ${response.submission.score}`);
       } else {
@@ -199,10 +387,19 @@ const CodingSection = () => {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Timer Display */}
+            {timeRemaining !== null && (
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-lg font-semibold ${timeRemaining < 300 ? 'bg-red-500/20 text-red-500' : 'bg-dark-700 text-white'
+                }`}>
+                <Clock className="w-5 h-5" />
+                <span>{formatTime(timeRemaining)}</span>
+              </div>
+            )}
+
             <div className="text-sm text-gray-400">
               Score: <span className="text-primary-400 font-semibold">{problem.score}</span>
             </div>
-            
+
             <select
               value={selectedLanguage.id}
               onChange={(e) => handleLanguageChange(LANGUAGE_OPTIONS.find(l => l.id === parseInt(e.target.value)))}
@@ -223,6 +420,15 @@ const CodingSection = () => {
             </button>
 
             <button
+              onClick={handleCheckTestCases}
+              disabled={checking}
+              className="btn-secondary"
+            >
+              {checking ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <CheckSquare className="w-4 h-4 mr-2" />}
+              Check All
+            </button>
+
+            <button
               onClick={handleSubmit}
               disabled={submitting}
               className="btn-primary"
@@ -239,11 +445,10 @@ const CodingSection = () => {
             <button
               key={p._id}
               onClick={() => setCurrentProblem(index)}
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                index === currentProblem
-                  ? 'bg-primary-500 text-white'
-                  : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
-              }`}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${index === currentProblem
+                ? 'bg-primary-500 text-white'
+                : 'bg-dark-700 text-gray-400 hover:bg-dark-600'
+                }`}
             >
               Problem {index + 1}
             </button>
@@ -259,22 +464,20 @@ const CodingSection = () => {
           <div className="flex border-b border-dark-700 bg-dark-800">
             <button
               onClick={() => setActiveTab('description')}
-              className={`px-6 py-3 text-sm font-medium ${
-                activeTab === 'description'
-                  ? 'text-primary-400 border-b-2 border-primary-500'
-                  : 'text-gray-400 hover:text-white'
-              }`}
+              className={`px-6 py-3 text-sm font-medium ${activeTab === 'description'
+                ? 'text-primary-400 border-b-2 border-primary-500'
+                : 'text-gray-400 hover:text-white'
+                }`}
             >
               <FileCode className="w-4 h-4 inline mr-2" />
               Description
             </button>
             <button
               onClick={() => setActiveTab('submissions')}
-              className={`px-6 py-3 text-sm font-medium ${
-                activeTab === 'submissions'
-                  ? 'text-primary-400 border-b-2 border-primary-500'
-                  : 'text-gray-400 hover:text-white'
-              }`}
+              className={`px-6 py-3 text-sm font-medium ${activeTab === 'submissions'
+                ? 'text-primary-400 border-b-2 border-primary-500'
+                : 'text-gray-400 hover:text-white'
+                }`}
             >
               <Terminal className="w-4 h-4 inline mr-2" />
               Submissions ({submissions.length})
@@ -366,7 +569,7 @@ const CodingSection = () => {
                   <div>
                     <span className="mr-2">Acceptance:</span>
                     <span className="text-green-400 font-semibold">
-                      {problem.submissionCount > 0 
+                      {problem.submissionCount > 0
                         ? `${((problem.acceptedCount / problem.submissionCount) * 100).toFixed(1)}%`
                         : '0%'
                       }
@@ -382,11 +585,10 @@ const CodingSection = () => {
                   submissions.map(sub => (
                     <div key={sub._id} className="bg-dark-800 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
-                        <span className={`font-semibold ${
-                          sub.verdict === 'ACCEPTED' ? 'text-green-400' :
+                        <span className={`font-semibold ${sub.verdict === 'ACCEPTED' ? 'text-green-400' :
                           sub.verdict === 'PENDING' ? 'text-yellow-400' :
-                          'text-red-400'
-                        }`}>
+                            'text-red-400'
+                          }`}>
                           {sub.verdict === 'ACCEPTED' && <CheckCircle className="w-4 h-4 inline mr-1" />}
                           {sub.verdict !== 'ACCEPTED' && sub.verdict !== 'PENDING' && <XCircle className="w-4 h-4 inline mr-1" />}
                           {sub.verdict.replace(/_/g, ' ')}
@@ -447,9 +649,8 @@ const CodingSection = () => {
               <div className="flex-1 border-l border-dark-700 bg-dark-900 p-4 font-mono text-sm overflow-auto">
                 {testResults ? (
                   <div className="space-y-2">
-                    <div className={`font-semibold ${
-                      testResults.verdict === 'ACCEPTED' ? 'text-green-400' : 'text-red-400'
-                    }`}>
+                    <div className={`font-semibold ${testResults.verdict === 'ACCEPTED' ? 'text-green-400' : 'text-red-400'
+                      }`}>
                       {testResults.verdict.replace(/_/g, ' ')}
                     </div>
                     <div className="text-gray-400 text-xs">

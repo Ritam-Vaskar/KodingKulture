@@ -1,12 +1,63 @@
 import { Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
 import { Code2, Trophy, Users, Award, ArrowRight, Zap, Target, Medal } from 'lucide-react';
+
+// Animated counter component
+const AnimatedCounter = ({ target, suffix = '', duration = 2000 }) => {
+  const [count, setCount] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
+  const counterRef = useRef(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !isVisible) {
+          setIsVisible(true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (counterRef.current) {
+      observer.observe(counterRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [isVisible]);
+
+  useEffect(() => {
+    if (!isVisible) return;
+
+    let startTime;
+    const step = (timestamp) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+
+      // Easing function for smooth animation
+      const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+      setCount(Math.floor(easeOutQuart * target));
+
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
+    };
+
+    requestAnimationFrame(step);
+  }, [isVisible, target, duration]);
+
+  return (
+    <span ref={counterRef}>
+      {count}{suffix}
+    </span>
+  );
+};
 
 const Home = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary-500/10 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-primary-500/10 to-transparent pointer-events-none"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
           <div className="text-center space-y-8 animate-slideIn">
             <div className="inline-block">
@@ -15,15 +66,15 @@ const Home = () => {
                 <span className="text-primary-500 text-sm font-semibold">Weekly Coding Contests</span>
               </div>
             </div>
-            
+
             <h1 className="text-5xl md:text-7xl font-bold leading-tight">
-              <span className="text-white">Compete. Code.</span>
+              <span className="text-white">Kompete. Kode.</span>
               <br />
-              <span className="gradient-text">Conquer.</span>
+              <span className="gradient-text">Konquer.</span>
             </h1>
-            
+
             <p className="text-xl md:text-2xl text-gray-400 max-w-3xl mx-auto">
-              Join weekly coding contests, solve challenging problems, and climb the leaderboard. 
+              Join weekly coding contests, solve challenging problems, and climb the leaderboard.
               Test your skills in MCQs and coding challenges.
             </p>
 
@@ -40,15 +91,21 @@ const Home = () => {
             {/* Stats */}
             <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto mt-16 pt-16 border-t border-dark-800">
               <div className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-primary-500 mb-2">500+</div>
+                <div className="text-3xl md:text-4xl font-bold text-primary-500 mb-2">
+                  <AnimatedCounter target={500} suffix="+" duration={2000} />
+                </div>
                 <div className="text-gray-400 text-sm">Active Users</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-primary-500 mb-2">50+</div>
+                <div className="text-3xl md:text-4xl font-bold text-primary-500 mb-2">
+                  <AnimatedCounter target={50} suffix="+" duration={1500} />
+                </div>
                 <div className="text-gray-400 text-sm">Contests</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-primary-500 mb-2">1000+</div>
+                <div className="text-3xl md:text-4xl font-bold text-primary-500 mb-2">
+                  <AnimatedCounter target={1000} suffix="+" duration={2500} />
+                </div>
                 <div className="text-gray-400 text-sm">Problems Solved</div>
               </div>
             </div>
