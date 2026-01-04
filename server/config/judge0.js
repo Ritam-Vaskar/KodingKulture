@@ -1,4 +1,6 @@
 import axios from 'axios';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const judge0Config = {
   baseURL: process.env.JUDGE0_API_URL || 'http://localhost:2358',
@@ -6,6 +8,8 @@ const judge0Config = {
     'Content-Type': 'application/json',
   }
 };
+
+
 
 // Add API key if provided
 if (process.env.JUDGE0_API_KEY) {
