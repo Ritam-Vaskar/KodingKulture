@@ -1,7 +1,7 @@
 import Submission from '../models/Submission.js';
 import CodingProblem from '../models/CodingProblem.js';
 import Result from '../models/Result.js';
-import { LANGUAGE_MAP } from '../config/judge0.js';
+import { LANGUAGE_MAP, LANGUAGE_ID_MAP } from '../config/judge0.js';
 import { submitToJudge0, mapStatusToVerdict } from '../services/judge0.service.js';
 
 // @desc    Test run code (without saving)
@@ -27,12 +27,29 @@ export const testRunCode = async (req, res) => {
         '' // No expected output for test run
       );
 
+      // Check if we should compare with expected output
+      let expectedOutput = null;
+      let passed = null;
+
+      // Only compare if problemId is provided and no custom input was given
+      if (problemId && !input) {
+        const problem = await CodingProblem.findById(problemId);
+        if (problem && problem.examples && problem.examples.length > 0) {
+          expectedOutput = problem.examples[0].output;
+          const actualOutput = (result.stdout || '').trim();
+          const expected = expectedOutput.trim();
+          passed = actualOutput === expected;
+        }
+      }
+
       res.status(200).json({
         success: true,
         output: result.stdout || '',
         error: result.stderr || result.compile_output || null,
         executionTime: result.time ? parseFloat(result.time) * 1000 : 0,
-        memoryUsed: result.memory || 0
+        memoryUsed: result.memory || 0,
+        expectedOutput: expectedOutput,
+        passed: passed
       });
     } catch (error) {
       console.error('Test run error:', error);
@@ -51,22 +68,126 @@ export const testRunCode = async (req, res) => {
   }
 };
 
+// @desc    Check code against all test cases (without saving)
+// @route   POST /api/submissions/check-all
+// @access  Private
+export const checkAllTestCases = async (req, res) => {
+  try {
+    const { problemId, sourceCode, languageId } = req.body;
+
+    if (!sourceCode || !languageId || !problemId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Source code, language, and problem ID are required'
+      });
+    }
+
+    // Get problem with testcases
+    const problem = await CodingProblem.findById(problemId);
+    if (!problem) {
+      return res.status(404).json({
+        success: false,
+        message: 'Problem not found'
+      });
+    }
+
+    // Run code against all testcases
+    let passedCount = 0;
+    const testcaseResults = [];
+
+    for (let i = 0; i < problem.testcases.length; i++) {
+      const testcase = problem.testcases[i];
+      try {
+        const result = await submitToJudge0(
+          sourceCode,
+          languageId,
+          testcase.input,
+          testcase.output
+        );
+
+        const verdict = mapStatusToVerdict(result.status.id);
+        const passed = verdict === 'ACCEPTED';
+
+        if (passed) {
+          passedCount++;
+        }
+
+        testcaseResults.push({
+          testcaseNumber: i + 1,
+          passed,
+          verdict,
+          input: testcase.hidden ? '[Hidden]' : testcase.input,
+          expectedOutput: testcase.hidden ? '[Hidden]' : testcase.output,
+          actualOutput: testcase.hidden ? '[Hidden]' : (result.stdout || '').trim(),
+          executionTime: result.time ? parseFloat(result.time) * 1000 : 0,
+          memoryUsed: result.memory || 0,
+          error: result.stderr || result.compile_output || null,
+          hidden: testcase.hidden
+        });
+      } catch (error) {
+        console.error(`Testcase ${i + 1} execution error:`, error);
+        testcaseResults.push({
+          testcaseNumber: i + 1,
+          passed: false,
+          verdict: 'EXECUTION_ERROR',
+          error: 'Execution failed',
+          hidden: testcase.hidden
+        });
+      }
+    }
+
+    const allPassed = passedCount === problem.testcases.length;
+
+    res.status(200).json({
+      success: true,
+      allPassed,
+      passedCount,
+      totalTestcases: problem.testcases.length,
+      testcaseResults
+    });
+  } catch (error) {
+    console.error('Check all test cases error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 // @desc    Submit code solution
 // @route   POST /api/submissions
 // @access  Private
 export const submitCode = async (req, res) => {
   try {
-    const { contestId, problemId, sourceCode, language } = req.body;
+    const { contestId, problemId, sourceCode, language, languageId: reqLanguageId } = req.body;
 
-    if (!sourceCode || !language) {
+    if (!sourceCode) {
       return res.status(400).json({
         success: false,
-        message: 'Source code and language are required'
+        message: 'Source code is required'
       });
     }
 
-    const languageId = LANGUAGE_MAP[language];
-    if (!languageId) {
+    // Resolve language - accept either languageId (number) or language (string)
+    let resolvedLanguageId;
+    let resolvedLanguage;
+
+    if (reqLanguageId) {
+      // Frontend sent languageId (number)
+      resolvedLanguageId = reqLanguageId;
+      resolvedLanguage = LANGUAGE_ID_MAP[reqLanguageId] || 'python';
+    } else if (language) {
+      // Frontend sent language (string)
+      resolvedLanguage = language;
+      resolvedLanguageId = LANGUAGE_MAP[language];
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Language is required'
+      });
+    }
+
+    if (!resolvedLanguageId) {
       return res.status(400).json({
         success: false,
         message: 'Unsupported language'
@@ -88,8 +209,8 @@ export const submitCode = async (req, res) => {
       contestId,
       problemId,
       sourceCode,
-      language,
-      languageId,
+      language: resolvedLanguage,
+      languageId: resolvedLanguageId,
       totalTestcases: problem.testcases.length
     });
 
@@ -102,7 +223,7 @@ export const submitCode = async (req, res) => {
       try {
         const result = await submitToJudge0(
           sourceCode,
-          languageId,
+          resolvedLanguageId,
           testcase.input,
           testcase.output
         );
@@ -141,8 +262,8 @@ export const submitCode = async (req, res) => {
     // Calculate final verdict
     let finalVerdict = 'ACCEPTED';
     if (passedCount < problem.testcases.length) {
-      finalVerdict = testcaseResults[passedCount]?.error?.includes('time') 
-        ? 'TIME_LIMIT_EXCEEDED' 
+      finalVerdict = testcaseResults[passedCount]?.error?.includes('time')
+        ? 'TIME_LIMIT_EXCEEDED'
         : 'WRONG_ANSWER';
     }
 
