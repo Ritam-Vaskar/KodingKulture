@@ -12,7 +12,9 @@ import {
   finalSubmitContest,
   trackTime,
   logViolation,
-  getContestViolations
+  getContestViolations,
+  getRegistrationStatus,
+  getContestParticipants
 } from '../controllers/contest.controller.js';
 import { protect } from '../middlewares/auth.middleware.js';
 import { adminOnly } from '../middlewares/admin.middleware.js';
@@ -25,7 +27,13 @@ router.get('/:id', getContestById);
 router.post('/', protect, adminOnly, createContest);
 router.put('/:id', protect, adminOnly, updateContest);
 router.delete('/:id', protect, adminOnly, deleteContest);
+
+// Registration routes
 router.post('/:id/register', protect, registerForContest);
+router.get('/:id/registration-status', protect, getRegistrationStatus);
+
+// Admin participants route
+router.get('/:id/participants', protect, adminOnly, getContestParticipants);
 
 // New contest flow routes
 router.post('/:id/start', protect, startContest);

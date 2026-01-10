@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { User, Mail, Lock, Building2, Phone, Eye, EyeOff, UserPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/authService';
@@ -18,6 +19,7 @@ const Register = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const navigate = useNavigate();
+  const { updateUser } = useAuth();
 
   // Handle Google Sign-in callback
   const handleGoogleCallback = useCallback(async (response) => {
@@ -31,9 +33,13 @@ const Register = () => {
       const result = await api.post('/auth/google', { credential: response.credential });
 
       if (result.data.success) {
+        // Set token and user in localStorage
         localStorage.setItem('token', result.data.token);
         localStorage.setItem('user', JSON.stringify(result.data.user));
+        // Update auth context state
+        updateUser(result.data.user);
         toast.success(result.data.message);
+        // Redirect to dashboard/home
         navigate('/dashboard');
       }
     } catch (error) {
@@ -41,7 +47,7 @@ const Register = () => {
     } finally {
       setGoogleLoading(false);
     }
-  }, [navigate]);
+  }, [navigate, updateUser]);
 
   // Initialize Google Sign-in
   useEffect(() => {

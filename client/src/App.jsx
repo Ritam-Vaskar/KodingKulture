@@ -28,6 +28,7 @@ import ManageCodingProblems from './pages/admin/ManageCodingProblems';
 import MCQLibrary from './pages/admin/MCQLibrary';
 import CodingLibrary from './pages/admin/CodingLibrary';
 import ContestViolations from './pages/admin/ContestViolations';
+import ContestParticipants from './pages/admin/ContestParticipants';
 import Loader from './components/common/Loader';
 import ProctorGuard from './components/contest/ProctorGuard';
 
@@ -296,6 +297,16 @@ function App() {
             element={
               <AdminRoute>
                 <ContestViolations />
+              </AdminRoute>
+            }
+          />
+
+          {/* Admin Participants Route */}
+          <Route
+            path="/admin/contest/:contestId/participants"
+            element={
+              <AdminRoute>
+                <ContestParticipants />
               </AdminRoute>
             }
           />

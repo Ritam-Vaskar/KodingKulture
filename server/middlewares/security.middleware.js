@@ -30,10 +30,10 @@ export const authLimiter = rateLimit({
     skipSuccessfulRequests: true // Don't count successful logins
 });
 
-// OTP rate limiter - 3 requests per 10 minutes (prevent spam)
+// OTP rate limiter - 10 requests per 10 minutes (prevent spam)
 export const otpLimiter = rateLimit({
     windowMs: 10 * 60 * 1000, // 10 minutes
-    max: 3,
+    max: 10,
     message: {
         success: false,
         message: 'Too many OTP requests, please try again after 10 minutes'

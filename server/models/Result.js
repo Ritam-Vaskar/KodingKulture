@@ -64,7 +64,7 @@ const resultSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['IN_PROGRESS', 'SUBMITTED', 'EVALUATED'],
+    enum: ['REGISTERED', 'IN_PROGRESS', 'SUBMITTED', 'EVALUATED'],
     default: 'IN_PROGRESS'
   },
   certificateGenerated: {
