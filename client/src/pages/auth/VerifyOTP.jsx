@@ -88,9 +88,9 @@ const VerifyOTP = () => {
             });
 
             if (response.data.success) {
-                toast.success('Email verified successfully!');
-                login(response.data.token, response.data.user);
-                navigate('/dashboard');
+                toast.success('Email verified! Please login to continue.');
+                // Redirect to login page after successful OTP verification
+                navigate('/login');
             }
         } catch (error) {
             toast.error(error.response?.data?.message || 'Invalid OTP');

@@ -6,9 +6,10 @@ import api from '../../services/authService';
 import Loader from '../../components/common/Loader';
 import {
   Trophy, Medal, Award, TrendingUp, ChevronDown, ChevronUp,
-  ArrowLeft, FileText, Code, Timer, Clock, Shield
+  ArrowLeft, FileText, Code, Timer, Clock, Shield, Users
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+
 
 const formatTime = (seconds) => {
   if (!seconds && seconds !== 0) return '--:--';
@@ -117,13 +118,22 @@ const Leaderboard = () => {
 
             {/* Admin: View Violations Button */}
             {isAdmin && (
-              <Link
-                to={`/admin/contest/${contestId}/violations`}
-                className="flex items-center gap-2 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors border border-red-500/30"
-              >
-                <Shield className="w-4 h-4" />
-                View Violations
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link
+                  to={`/admin/contest/${contestId}/participants`}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-400 rounded-lg hover:bg-purple-500/30 transition-colors border border-purple-500/30"
+                >
+                  <Users className="w-4 h-4" />
+                  Participants
+                </Link>
+                <Link
+                  to={`/admin/contest/${contestId}/violations`}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors border border-red-500/30"
+                >
+                  <Shield className="w-4 h-4" />
+                  Violations
+                </Link>
+              </div>
             )}
           </div>
 

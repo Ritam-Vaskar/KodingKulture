@@ -1,6 +1,8 @@
 import Contest from '../models/Contest.js';
 import Result from '../models/Result.js';
 import Violation from '../models/Violation.js';
+import ContestRegistration from '../models/ContestRegistration.js';
+import ContestProgress from '../models/ContestProgress.js';
 
 // @desc    Get all contests
 // @route   GET /api/contests
@@ -91,9 +93,26 @@ export const createContest = async (req, res) => {
 // @access  Private/Admin
 export const updateContest = async (req, res) => {
   try {
+    const updateData = { ...req.body };
+
+    // If timing is being updated, recalculate status
+    if (updateData.startTime || updateData.endTime) {
+      const now = new Date();
+      const startTime = new Date(updateData.startTime || (await Contest.findById(req.params.id)).startTime);
+      const endTime = new Date(updateData.endTime || (await Contest.findById(req.params.id)).endTime);
+
+      if (now < startTime) {
+        updateData.status = 'UPCOMING';
+      } else if (now >= startTime && now <= endTime) {
+        updateData.status = 'LIVE';
+      } else {
+        updateData.status = 'ENDED';
+      }
+    }
+
     const contest = await Contest.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     );
 
@@ -150,7 +169,10 @@ export const deleteContest = async (req, res) => {
 // @access  Private
 export const registerForContest = async (req, res) => {
   try {
-    const contest = await Contest.findById(req.params.id);
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    const contest = await Contest.findById(id);
 
     if (!contest) {
       return res.status(404).json({
@@ -159,8 +181,21 @@ export const registerForContest = async (req, res) => {
       });
     }
 
-    // Check if already registered
-    if (contest.participants.includes(req.user._id)) {
+    // Block registration for ended contests
+    if (contest.status === 'ENDED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot register for an ended contest'
+      });
+    }
+
+    // Check if already registered in ContestRegistration
+    const existingRegistration = await ContestRegistration.findOne({
+      contestId: id,
+      userId
+    });
+
+    if (existingRegistration) {
       return res.status(400).json({
         success: false,
         message: 'Already registered for this contest'
@@ -175,15 +210,28 @@ export const registerForContest = async (req, res) => {
       });
     }
 
-    contest.participants.push(req.user._id);
-    await contest.save();
+    // Create ContestRegistration record
+    await ContestRegistration.create({
+      contestId: id,
+      userId,
+      registeredAt: new Date()
+    });
+
+    // Also add to participants array for backward compatibility
+    if (!contest.participants.includes(userId)) {
+      contest.participants.push(userId);
+      await contest.save();
+    }
 
     // Create result entry
-    await Result.create({
-      userId: req.user._id,
-      contestId: contest._id,
-      status: 'IN_PROGRESS'
-    });
+    const existingResult = await Result.findOne({ userId, contestId: id });
+    if (!existingResult) {
+      await Result.create({
+        userId,
+        contestId: contest._id,
+        status: 'REGISTERED'
+      });
+    }
 
     // Return updated contest
     const updatedContest = await Contest.findById(contest._id).populate('createdBy', 'name email');
@@ -667,6 +715,133 @@ export const getContestViolations = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error fetching violations'
+    });
+  }
+};
+
+// @desc    Check registration status for a contest
+// @route   GET /api/contests/:id/registration-status
+// @access  Private
+export const getRegistrationStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    const registration = await ContestRegistration.findOne({
+      contestId: id,
+      userId
+    });
+
+    const progress = await ContestProgress.findOne({
+      contestId: id,
+      userId
+    });
+
+    res.status(200).json({
+      success: true,
+      isRegistered: !!registration,
+      registeredAt: registration?.registeredAt || null,
+      hasStarted: !!progress,
+      startedAt: progress?.startedAt || null,
+      status: progress?.status || null,
+      submittedAt: progress?.submittedAt || null
+    });
+  } catch (error) {
+    console.error('Check registration status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error checking registration status'
+    });
+  }
+};
+
+// @desc    Get all participants for a contest (Admin view)
+// @route   GET /api/contests/:id/participants
+// @access  Private/Admin
+export const getContestParticipants = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get all registrations
+    const registrations = await ContestRegistration.find({ contestId: id })
+      .populate('userId', 'name email college phone')
+      .sort({ registeredAt: 1 });
+
+    // Get all progress records
+    const progressRecords = await ContestProgress.find({ contestId: id })
+      .populate('userId', 'name email college phone')
+      .sort({ startedAt: 1 });
+
+    // Build a combined view
+    const participantMap = new Map();
+
+    // Add registrations
+    for (const reg of registrations) {
+      if (reg.userId) {
+        participantMap.set(reg.userId._id.toString(), {
+          user: {
+            id: reg.userId._id,
+            name: reg.userId.name,
+            email: reg.userId.email,
+            college: reg.userId.college,
+            phone: reg.userId.phone
+          },
+          registeredAt: reg.registeredAt,
+          startedAt: null,
+          submittedAt: null,
+          status: 'REGISTERED',
+          terminationReason: null
+        });
+      }
+    }
+
+    // Merge with progress records
+    for (const prog of progressRecords) {
+      if (prog.userId) {
+        const key = prog.userId._id.toString();
+        const existing = participantMap.get(key) || {
+          user: {
+            id: prog.userId._id,
+            name: prog.userId.name,
+            email: prog.userId.email,
+            college: prog.userId.college,
+            phone: prog.userId.phone
+          },
+          registeredAt: null
+        };
+
+        participantMap.set(key, {
+          ...existing,
+          startedAt: prog.startedAt,
+          submittedAt: prog.submittedAt,
+          status: prog.status || 'IN_PROGRESS',
+          terminationReason: prog.terminationReason
+        });
+      }
+    }
+
+    const participants = Array.from(participantMap.values());
+
+    // Summary stats
+    const stats = {
+      totalRegistered: registrations.length,
+      totalStarted: progressRecords.length,
+      totalSubmitted: progressRecords.filter(p => p.status === 'SUBMITTED').length,
+      totalTimedOut: progressRecords.filter(p => p.status === 'TIMED_OUT').length,
+      totalMalpractice: progressRecords.filter(p => p.terminationReason === 'MALPRACTICE').length,
+      notStarted: registrations.length - progressRecords.length
+    };
+
+    res.status(200).json({
+      success: true,
+      stats,
+      participants
+    });
+  } catch (error) {
+    console.error('Get participants error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching participants'
     });
   }
 };
